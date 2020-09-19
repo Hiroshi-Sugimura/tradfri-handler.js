@@ -1,0 +1,27 @@
+{
+  "name": "tradfri-handler",
+  "version": "0.0.1",
+  "description": "This module provides tradfri managements API.",
+  "main": "index.js",
+  "scripts": {
+    "test": "cd ..&& cd .. && npm test"
+  },
+	"repository": {
+    "type": "git",
+    "url": "https://github.com/Hiroshi-Sugimura/tradfri-handler.js"
+  },
+  "author": {
+    "name": "Hiroshi SUGIMURA"
+  },
+  "dependencies": {
+    "node-tradfri-client": "^2.1.6"
+  },
+  "license": "MIT",
+  "Keywords": [
+    "IKEA",
+    "Tradfri",
+    "Smart house",
+    "IoT",
+    "Home appliances"
+  ]
+}
