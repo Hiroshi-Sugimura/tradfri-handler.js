@@ -149,5 +149,6 @@ x Warranty
 
 ## Log
 
+- 0.5.1 autoGet、getStateバグ修正
 - 0.5.0 安定性向上、少しコントロールもできるように
 - 0.0.1 start up
