@@ -118,7 +118,7 @@ let Tradfri = {
 
 		if( Tradfri.debugMode == true ) {
 			console.log('==== tradfri-handler.js ====');
-			console.log('securityCode:', Tradfri.securityCode, 'identity:', Tradfri.identity, 'psk:', Tradfri.psk );
+			console.log('securityCode:', Tradfri.securityCode, ', identity:', Tradfri.identity, ', psk:', Tradfri.psk );
 			console.log('autoGet:', Tradfri.autoGet );
 		}
 
@@ -176,14 +176,17 @@ let Tradfri = {
 				case TradfriErrorCodes.ConnectionTimedOut: {
 					// The gateway is unreachable or did not respond in time
 					console.error('Error: Tradfri.start() TradfriErrorCodes.ConnectionTimedOut.');
+					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 				}
 				case TradfriErrorCodes.AuthenticationFailed: {
 					// The provided credentials are not valid. You need to re-authenticate using `authenticate()`.
 					console.error('Error: Tradfri.start() TradfriErrorCodes.AuthenticationFailed.');
+					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 				}
 				case TradfriErrorCodes.ConnectionFailed: {
 					// An unknown error happened while trying to connect
 					console.error('Error: Tradfri.start() TradfriErrorCodes.ConnectionFailed.');
+					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 				}
 			}
 			throw error;
@@ -196,7 +199,7 @@ let Tradfri = {
 		}
 
 		if( Tradfri.autoGet == true ) {
-			// Tradfri.autoGetStart();
+			Tradfri.autoGetStart();
 		}
 		Tradfri.getState();
 

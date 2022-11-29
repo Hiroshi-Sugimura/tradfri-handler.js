@@ -122,9 +122,11 @@ TFStart();  // 実行
 
 ## Authors
 
-神奈川工科大学  創造工学部  ホームエレクトロニクス開発学科; Dept. of Home Electronics, Faculty of Creative Engineering, Kanagawa Institute of Technology
+神奈川工科大学  創造工学部  ホームエレクトロニクス開発学科
+Dept. of Home Electronics, Faculty of Creative Engineering, Kanagawa Institute of Technology
 
-杉村　博; SUGIMURA, Hiroshi
+杉村　博
+SUGIMURA Hiroshi
 
 
 ## License
@@ -149,6 +151,7 @@ x Warranty
 
 ## Log
 
+- 0.5.2 細かいバグログ関連
 - 0.5.1 autoGet、getStateバグ修正
 - 0.5.0 安定性向上、少しコントロールもできるように
 - 0.0.1 start up
