@@ -151,6 +151,7 @@ x Warranty
 
 ## Log
 
+- 0.5.3 dependenciesなくした
 - 0.5.2 細かいバグログ関連
 - 0.5.1 autoGet、getStateバグ修正
 - 0.5.0 安定性向上、少しコントロールもできるように

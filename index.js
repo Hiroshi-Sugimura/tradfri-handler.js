@@ -9,7 +9,8 @@ const discoverGateway   = tradfriLib.discoverGateway;
 const AccessoryTypes    = tradfriLib.AccessoryTypes;
 const TradfriError      = tradfriLib.TradfriError;
 const TradfriErrorCodes = tradfriLib.TradfriErrorCodes;
-const cron            = require('node-cron');
+
+const cron = require('node-cron');
 
 
 //////////////////////////////////////////////////////////////////////
@@ -107,14 +108,14 @@ let Tradfri = {
 
 		Tradfri.canceled = false; // 初期化キャンセル管理
 
-		Tradfri.gw = {};
-		Tradfri.facilities = {};
-		Tradfri.securityCode      = securityCode      == undefined ? ''            : securityCode;
-		Tradfri.userFunc          = userFunc          == undefined ? Tradfri.dummy : userFunc;
-		Tradfri.debugMode         = Options.debugMode == undefined || Options.debugMode == false ? false : true;   // true: show debug log
-		Tradfri.autoGet           = Options.autoGet     != false     ? true                    : false;	// 自動的な状態取得の有無
-		Tradfri.identity          = Options.identity    == undefined || Options.identity    === '' ? '' : Options.identity;
-		Tradfri.psk               = Options.psk         == undefined || Options.psk         === '' ? '' : Options.psk;
+		Tradfri.gw            = {};
+		Tradfri.facilities    = {};
+		Tradfri.securityCode  = securityCode      == undefined ? ''            : securityCode;
+		Tradfri.userFunc      = userFunc          == undefined ? Tradfri.dummy : userFunc;
+		Tradfri.debugMode     = Options.debugMode == undefined || Options.debugMode   == false ? false : true;   // true: show debug log
+		Tradfri.autoGet       = Options.autoGet   != false     ? true                    : false;	// 自動的な状態取得の有無
+		Tradfri.identity      = Options.identity  == undefined || Options.identity    === '' ? '' : Options.identity;
+		Tradfri.psk           = Options.psk       == undefined || Options.psk         === '' ? '' : Options.psk;
 
 		if( Tradfri.debugMode == true ) {
 			console.log('==== tradfri-handler.js ====');
@@ -136,31 +137,30 @@ let Tradfri = {
 					// 失敗したら30秒まつ
 					await Tradfri.sleep( 30000 );
 				}
-			}catch (e) {
-				console.error(e);
-				console.dir(e);
+			}catch (error) {
+				console.error('Error: tradfri-handler.initialize().discoverGateway', error);
 				Tradfri.enabled = false;
-				throw e;
+				throw error;
 			}
 		}
 
 		Tradfri.gwAddress = Tradfri.gw.addresses[0];  // 一つしか管理しない
 
-		Tradfri.debugMode? console.log( 'Tradfri.initialize() address:', Tradfri.gwAddress, ', gw', Tradfri.gw ):0;
+		Tradfri.debugMode? console.log( 'tradfri-handler.initialize() address:', Tradfri.gwAddress, ', gw', Tradfri.gw ):0;
 
 		Tradfri.client = new TradfriClient( Tradfri.gwAddress );
 
 		if( Tradfri.identity === '' ) { // 新規Link
-			Tradfri.debugMode? console.log('Tradfri.start() authenticate'):0;
+			Tradfri.debugMode? console.log('tradfri-handler.initialize().authenticate, securityCode:', Tradfri.securityCode):0;
 			try{
 				const ret = await Tradfri.client.authenticate( Tradfri.securityCode );
 				Tradfri.identity = ret.identity;
 				Tradfri.psk = ret.psk;
-				Tradfri.debugMode? console.log( 'Tradfri.start() ret identity:', Tradfri.identity ):0;
-				Tradfri.debugMode? console.log( 'Tradfri.start() ret psk:', Tradfri.psk ):0;
+				Tradfri.debugMode? console.log( 'tradfri-handler.initialize() ret identity:', Tradfri.identity ):0;
+				Tradfri.debugMode? console.log( 'tradfri-handler.initialize() ret psk:', Tradfri.psk ):0;
 			} catch(error) {
-				console.error('Error: Tradfri.start() authenticate');
-				console.dir(error);
+				console.error('Error: tradfri-handler.initialize().authenticate', error);
+				console.log('securityCode:', Tradfri.securityCode );
 				Tradfri.enabled = false;
 				throw error;
 			}
@@ -175,17 +175,17 @@ let Tradfri = {
 			switch (error.code) {
 				case TradfriErrorCodes.ConnectionTimedOut: {
 					// The gateway is unreachable or did not respond in time
-					console.error('Error: Tradfri.start() TradfriErrorCodes.ConnectionTimedOut.');
+					console.error('Error: tradfri-handler.initialize() TradfriErrorCodes.ConnectionTimedOut.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 				}
 				case TradfriErrorCodes.AuthenticationFailed: {
 					// The provided credentials are not valid. You need to re-authenticate using `authenticate()`.
-					console.error('Error: Tradfri.start() TradfriErrorCodes.AuthenticationFailed.');
+					console.error('Error: tradfri-handler.identity() TradfriErrorCodes.AuthenticationFailed.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 				}
 				case TradfriErrorCodes.ConnectionFailed: {
 					// An unknown error happened while trying to connect
-					console.error('Error: Tradfri.start() TradfriErrorCodes.ConnectionFailed.');
+					console.error('Error: tradfri-handler.identity() TradfriErrorCodes.ConnectionFailed.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 				}
 			}
@@ -242,7 +242,7 @@ let Tradfri = {
 	// インタフェース，監視を始める
 	autoGetStart: function () {
 		// configファイルにobservationDevsが設定されていれば実施
-		Tradfri.debugMode? console.log( 'Tradfri.autoGetStart()' ):0;
+		Tradfri.debugMode? console.log( 'tradfri-handler.autoGetStart()' ):0;
 
 		if( Tradfri.autoGetCron != null ) { // すでに開始していたら何もしない
 			return;
@@ -259,7 +259,7 @@ let Tradfri = {
 
 	// インタフェース，監視をやめる
 	autoGetStop: function() {
-		Tradfri.debugMode? console.log( 'Tradfri.autoGetStop()' ) : 0;
+		Tradfri.debugMode? console.log( 'tradfri-handler.autoGetStop()' ) : 0;
 
 		if( Tradfri.autoGetCron ) { // 現在登録されているタイマーを消す
 			Tradfri.autoGetCron.stop();

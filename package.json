@@ -1,6 +1,6 @@
 {
   "name": "tradfri-handler",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "This module provides tradfri managements API.",
   "main": "index.js",
   "scripts": {
@@ -12,9 +12,6 @@
   },
   "author": {
     "name": "Hiroshi SUGIMURA"
-  },
-  "dependencies": {
-    "node-tradfri-client": "^2.1.6"
   },
   "license": "MIT",
   "Keywords": [
