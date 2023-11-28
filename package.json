@@ -1,12 +1,12 @@
 {
   "name": "tradfri-handler",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "This module provides tradfri managements API.",
   "main": "index.js",
   "scripts": {
     "test": "cd ..&& cd .. && npm test"
   },
-	"repository": {
+  "repository": {
     "type": "git",
     "url": "https://github.com/Hiroshi-Sugimura/tradfri-handler.js"
   },
