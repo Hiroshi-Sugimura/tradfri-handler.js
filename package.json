@@ -20,5 +20,9 @@
     "Smart house",
     "IoT",
     "Home appliances"
-  ]
+  ],
+  "dependencies": {
+    "node-cron": "^4.2.1",
+    "node-tradfri-client": "^3.2.0"
+  }
 }

@@ -184,16 +184,19 @@ let Tradfri = {
 					// The gateway is unreachable or did not respond in time
 					console.error('Error: tradfri-handler.initialize() TradfriErrorCodes.ConnectionTimedOut.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
+					break;
 				}
 				case TradfriErrorCodes.AuthenticationFailed: {
 					// The provided credentials are not valid. You need to re-authenticate using `authenticate()`.
 					console.error('Error: tradfri-handler.identity() TradfriErrorCodes.AuthenticationFailed.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
+					break;
 				}
 				case TradfriErrorCodes.ConnectionFailed: {
 					// An unknown error happened while trying to connect
 					console.error('Error: tradfri-handler.identity() TradfriErrorCodes.ConnectionFailed.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
+					break;
 				}
 			}
 			throw error;
@@ -262,28 +265,13 @@ let Tradfri = {
 	autoGetStart: function () {
 		// configファイルにobservationDevsが設定されていれば実施
 		Tradfri.debugMode ? console.log('tradfri-handler.autoGetStart()') : 0;
-
-		if (Tradfri.autoGetCron != null) { // すでに開始していたら何もしない
-			return;
-		}
-
-		if (Tradfri.gwAddress != '') { // IPがすでにないと例外になるので
-			Tradfri.autoGetCron = cron.schedule('0 * * * * *', async () => {  // 1分毎にautoget
-				Tradfri.getState();
-			});
-
-			Tradfri.autoGetCron.start();
-		}
+		// Tradfri.client.observeDevices() is persistent, so no need to call it repeatedly via cron.
 	},
 
 	// インタフェース，監視をやめる
 	autoGetStop: function () {
 		Tradfri.debugMode ? console.log('tradfri-handler.autoGetStop()') : 0;
-
-		if (Tradfri.autoGetCron) { // 現在登録されているタイマーを消す
-			Tradfri.autoGetCron.stop();
-		}
-		Tradfri.autoGetCron = null;
+		// Cron job removed.
 	}
 };
 
