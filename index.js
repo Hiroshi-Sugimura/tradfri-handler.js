@@ -14,60 +14,71 @@ const cron = require('node-cron');
 
 
 //////////////////////////////////////////////////////////////////////
-// Tradfri，複数のTradfri gwを管理する能力はない
-// クラス変数
+/**
+ * Tradfri管理オブジェクト
+ * 注意: 複数のTradfriゲートウェイを管理する機能はありません。
+ * @namespace Tradfri
+ */
 let Tradfri = {
+	/** @type {AccessoryTypes} AccessoryTypesへの参照 */
 	AccessoryTypes: AccessoryTypes,
+
 	// user config
-	securityCode: '', // GWの裏面，初回だけ必要
+	/** @type {string} ゲートウェイ裏面のセキュリティコード (初回認証時のみ必要) */
+	securityCode: '',
+	/** @type {string} 接続用 Identity */
 	identity: '',
+	/** @type {string} 接続用 Pre-shared key */
 	psk: '',
-	userFunc: {},  // callback function
+	/** @type {Object|function} コールバック関数 */
+	userFunc: {},
 
 	// private
-	enabled: false, // 多重起動防止
+	/** @type {boolean} 多重起動防止フラグ */
+	enabled: false,
+	/** @type {Object} ゲートウェイ情報 */
 	gw: {},
+	/** @type {string} ゲートウェイIPアドレス */
 	gwAddress: '',
+	/** @type {Object} TradfriClient インスタンス */
 	client: {},
-	autoGet: true, // true = 自動的に状態取得をする
+	/** @type {boolean} 自動状態取得フラグ (true = 自動) */
+	autoGet: true,
+	/** @type {boolean} デバッグモードフラグ */
 	debugMode: false,
-	autoGetCron: null,  // 状態の自動取得
-	canceled: false,  // 初期化のキャンセル管理
+	/** @type {Object|null} 自動取得用cronジョブ (永続監視のため現在は未使用) */
+	autoGetCron: null,
+	/** @type {boolean} 初期化キャンセル管理フラグ */
+	canceled: false,
 
 	// public
-	facilities: {},	// 全機器情報リスト
-	lights: {}, // ライトリスト
-	blinds: {}, // ブラインドリスト
+	/** @type {Object} 全機器情報リスト */
+	facilities: {},
+	/** @type {Object} ライトリスト */
+	lights: {},
+	/** @type {Object} ブラインドリスト */
+	blinds: {},
 
 	////////////////////////////////////////
 	// inner functions
 
-	// 時間つぶす関数
+	/**
+	 * 指定時間スリープする
+	 * @param {number} ms - スリープする時間(ミリ秒)
+	 * @returns {Promise<void>}
+	 */
 	sleep: async function (ms) {
 		return new Promise(function (resolve) {
 			setTimeout(function () { resolve() }, ms);
 		})
 	},
 
-
-	// キーでソートしてからJSONにする
-	// 単純にJSONで比較するとオブジェクトの格納順序の違いだけで比較結果がイコールにならない
-	objectSort: function (obj) {
-		// まずキーのみをソートする
-		let keys = Object.keys(obj).sort();
-
-		// 返却する空のオブジェクトを作る
-		let map = {};
-
-		// ソート済みのキー順に返却用のオブジェクトに値を格納する
-		keys.forEach(function (key) {
-			map[key] = obj[key];
-		});
-
-		return map;
-	},
-
-	// Object型が空{}かどうかチェックする。 obj == {} ではチェックできない事に注意
+	/**
+	 * オブジェクトが空かどうか判定する
+	 * 注意: `obj == {}` では判定できません
+	 * @param {Object} obj - 判定対象のオブジェクト
+	 * @returns {boolean} 空の場合はtrue、それ以外はfalse
+	 */
 	isObjEmpty: function (obj) {
 		return Object.keys(obj).length === 0;
 	},
@@ -76,18 +87,27 @@ let Tradfri = {
 	//////////////////////////////////////////////////////////////////////
 	// Tradfri特有の手続き
 	//////////////////////////////////////////////////////////////////////
-	// 何もしない関数, when userFunc is undef, receiving data is forwarded to dummy.
+	/**
+	 * userFuncが未定義の場合のダミー関数
+	 * @param {string} addr - アドレス (未使用)
+	 * @param {Object} dev - デバイスオブジェクト (未使用)
+	 * @param {Object} err - エラーオブジェクト (未使用)
+	 */
 	dummy: function (addr, dev, err) {
 		Tradfri.debugMode ? console.log('Tradfri.dummy( addr:', addr, ', dev:', dev, 'err:', err, ')') : 0;
 	},
 
+	/**
+	 * デバイス更新時のコールバック
+	 * @param {Object} device - 更新されたデバイスオブジェクト
+	 */
 	_deviceUpdated: function (device) {
 		// Tradfri.debugMode? console.log('_deviceUpdated, device:', device): 0;
 
 		Tradfri.facilities = Tradfri.client.devices;  // 機器情報更新
 
 		if (Tradfri.userFunc) {
-			Tradfri.userFunc(Tradfri.gwAddress, device, null); // アップデートのあったデバイス情報だけ
+			Tradfri.userFunc(Tradfri.gwAddress, device, null); // アップデートのあったデバイス情報だけ通知
 		}
 
 		if (device.type === AccessoryTypes.lightbulb) {
@@ -97,10 +117,21 @@ let Tradfri = {
 		}
 	},
 
-	_deviceRemoved: function (instanceId) { // clean up
+	/**
+	 * デバイス削除時のコールバック
+	 * 内部リストから削除を行います
+	 * @param {number} instanceId - 削除されたデバイスのID
+	 */
+	_deviceRemoved: function (instanceId) {
 		Tradfri.debugMode ? console.log('_deviceRemoved', instanceId) : 0;
+		if (Tradfri.facilities[instanceId]) delete Tradfri.facilities[instanceId];
+		if (Tradfri.lights[instanceId]) delete Tradfri.lights[instanceId];
+		if (Tradfri.blinds[instanceId]) delete Tradfri.blinds[instanceId];
 	},
 
+	/**
+	 * 通知監視用コールバック
+	 */
 	_observeNotifications: function () {
 		Tradfri.debugMode ? console.log('observeNotifications') : 0;
 	},
@@ -108,12 +139,23 @@ let Tradfri = {
 
 	//////////////////////////////////////////////////////////////////////
 	// 初期化
+	/**
+	 * Tradfriハンドラの初期化
+	 * @param {string} securityCode - セキュリティコード
+	 * @param {function} userFunc - ユーザーコールバック関数
+	 * @param {Object} [Options] - オプション
+	 * @param {string} [Options.identity=''] - Identity
+	 * @param {string} [Options.psk=''] - PSK
+	 * @param {boolean} [Options.autoGet=true] - 自動状態取得
+	 * @param {boolean} [Options.debugMode=false] - デバッグモード
+	 * @returns {Promise<Object|null>} identityとpskを含むオブジェクト、キャンセルの場合はnull
+	 */
 	initialize: async function (securityCode, userFunc, Options = { identity: '', psk: '', autoGet: true, debugMode: false }) {
 		// 多重起動防止
 		if (Tradfri.enabled) return;
 		Tradfri.enabled = true;
 
-		Tradfri.canceled = false; // 初期化キャンセル管理
+		Tradfri.canceled = false;
 
 		Tradfri.gw = {};
 		Tradfri.facilities = {};
@@ -130,7 +172,7 @@ let Tradfri = {
 			console.log('autoGet:', Tradfri.autoGet);
 		}
 
-		while (!Object.keys(Tradfri.gw).length) {  // {}でチェックできない
+		while (!Object.keys(Tradfri.gw).length) {
 			if (Tradfri.canceled) {  // 初期化中にキャンセルがきた
 				Tradfri.userFunc(null, 'Canceled', null);
 				Tradfri.enabled = false;
@@ -138,7 +180,7 @@ let Tradfri = {
 			}
 
 			try {
-				// find GW
+				// GWを探す
 				Tradfri.gw = await discoverGateway();
 				if (Tradfri.isObjEmpty(Tradfri.gw)) {
 					// 失敗したら30秒まつ
@@ -157,7 +199,7 @@ let Tradfri = {
 
 		Tradfri.client = new TradfriClient(Tradfri.gwAddress);
 
-		if (Tradfri.identity === '') { // 新規Link
+		if (Tradfri.identity === '') { // 新規リンク
 			Tradfri.debugMode ? console.log('tradfri-handler.initialize().authenticate, securityCode:', Tradfri.securityCode) : 0;
 			try {
 				const ret = await Tradfri.client.authenticate(Tradfri.securityCode);
@@ -181,19 +223,19 @@ let Tradfri = {
 		} catch (error) {
 			switch (error.code) {
 				case TradfriErrorCodes.ConnectionTimedOut: {
-					// The gateway is unreachable or did not respond in time
+					// ゲートウェイに到達できないか、応答がありませんでした
 					console.error('Error: tradfri-handler.initialize() TradfriErrorCodes.ConnectionTimedOut.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 					break;
 				}
 				case TradfriErrorCodes.AuthenticationFailed: {
-					// The provided credentials are not valid. You need to re-authenticate using `authenticate()`.
+					// 認証情報が無効です。`authenticate()`を使用して再認証する必要があります。
 					console.error('Error: tradfri-handler.identity() TradfriErrorCodes.AuthenticationFailed.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 					break;
 				}
 				case TradfriErrorCodes.ConnectionFailed: {
-					// An unknown error happened while trying to connect
+					// 接続時に不明なエラーが発生しました
 					console.error('Error: tradfri-handler.identity() TradfriErrorCodes.ConnectionFailed.');
 					console.error('identity:', Tradfri.identity, ', psk:', Tradfri.psk);
 					break;
@@ -217,13 +259,18 @@ let Tradfri = {
 	},
 
 	//====================================================================
-	// 初期化キャンセル
+	/**
+	 * 初期化キャンセル
+	 */
 	initializeCancel: function () {
 		Tradfri.canceled = true;
 	},
 
 	//====================================================================
-	// 解放
+	/**
+	 * 解放処理
+	 * @returns {Promise<void>}
+	 */
 	release: async function () {
 		if (!Tradfri.enabled) return; // 多重開放の防止
 		Tradfri.enabled = false;
@@ -234,12 +281,21 @@ let Tradfri = {
 
 	//////////////////////////////////////////////////////////////////////
 	// request(options, function (error, response, body) { })
+	/**
+	 * 状態取得（監視開始）
+	 */
 	getState: function () {
-		// 状態取得
+		// 監視開始
 		Tradfri.client.observeDevices();
 	},
 
 
+	/**
+	 * デバイスの状態を設定する
+	 * @param {number} devId - デバイスID
+	 * @param {string} devType - デバイスタイプ ('light' または 'blind')
+	 * @param {Object} command - コマンドオブジェクト
+	 */
 	setState: async function (devId, devType, command) {
 		// const response = await Tradfri.client.request(devId, "post", stateJson);
 		Tradfri.debugMode ? console.log('Tradfri.setState() devId:', devId, ', devType:', devType, ', command:', command) : 0;
@@ -261,17 +317,21 @@ let Tradfri = {
 
 	//////////////////////////////////////////////////////////////////////
 	// 定期的なデバイスの監視
-	// インタフェース，監視を始める
+	/**
+	 * 自動状態取得の開始 (実際には永続的な監視のみ開始)
+	 */
 	autoGetStart: function () {
 		// configファイルにobservationDevsが設定されていれば実施
 		Tradfri.debugMode ? console.log('tradfri-handler.autoGetStart()') : 0;
-		// Tradfri.client.observeDevices() is persistent, so no need to call it repeatedly via cron.
+		// Tradfri.client.observeDevices() は永続的なため、cronで繰り返す必要はありません
 	},
 
-	// インタフェース，監視をやめる
+	/**
+	 * 自動状態取得の停止
+	 */
 	autoGetStop: function () {
 		Tradfri.debugMode ? console.log('tradfri-handler.autoGetStop()') : 0;
-		// Cron job removed.
+		// cronジョブは削除されました
 	}
 };
 
