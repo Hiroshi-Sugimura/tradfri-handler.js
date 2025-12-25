@@ -155,7 +155,8 @@ x Warranty
 
 ## Log
 
-― 1.0.0 jsdoc対応、test追加、安定化
+- 1.0.1 jsdoc対応、test追加、安定化
+- 1.0.0 正式版としてリリース
 - 0.5.4 lightとblindを制御しやすく
 - 0.5.3 dependenciesなくした
 - 0.5.2 細かいバグログ関連
