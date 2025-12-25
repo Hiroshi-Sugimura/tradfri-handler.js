@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>Home - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="Tradfri.html">Tradfri</a><ul class='methods'><li data-type='method'><a href="Tradfri.html#._deviceRemoved">_deviceRemoved</a></li><li data-type='method'><a href="Tradfri.html#._deviceUpdated">_deviceUpdated</a></li><li data-type='method'><a href="Tradfri.html#._observeNotifications">_observeNotifications</a></li><li data-type='method'><a href="Tradfri.html#.autoGetStart">autoGetStart</a></li><li data-type='method'><a href="Tradfri.html#.autoGetStop">autoGetStop</a></li><li data-type='method'><a href="Tradfri.html#.dummy">dummy</a></li><li data-type='method'><a href="Tradfri.html#.getState">getState</a></li><li data-type='method'><a href="Tradfri.html#.initialize">initialize</a></li><li data-type='method'><a href="Tradfri.html#.initializeCancel">initializeCancel</a></li><li data-type='method'><a href="Tradfri.html#.isObjEmpty">isObjEmpty</a></li><li data-type='method'><a href="Tradfri.html#.release">release</a></li><li data-type='method'><a href="Tradfri.html#.setState">setState</a></li><li data-type='method'><a href="Tradfri.html#.sleep">sleep</a></li></ul></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+
+    
+
+
+
+    
+
+
+    <section class="package">
+        <h3> </h3>		
+    </section>
+
+
+
+
+
+
+
+
+
+    
+
+
+
+    <section class="readme usertext">
+        <article><h1>Overview</h1>
+<p>tradfri-handler</p>
+<h1>Install</h1>
+<p>下記コマンドでモジュールをインストールできます．</p>
+<p>You can install the module as following command.</p>
+<pre class="prettyprint source lang-bash"><code>npm i tradfri-handler
+</code></pre>
+<p>もしかしたら下記が必要かもしれません。</p>
+<pre class="prettyprint source lang-bash"><code>npm i node-cron
+</code></pre>
+<h1>Demo, example</h1>
+<pre class="prettyprint source"><code>'use strict'
+
+const cron = require('node-cron');
+const TF = require('tradfri-handler');
+
+////////////////////////////////////////
+// config
+const TFkey      = '';      // GWの裏面に書いてある，初回だけ必要
+let   TFidentity = ''; // GW自動生成を記録しておいて、2回目以降は設定しておくと接続早くなる
+let   TFpsk      = ''; // GW自動生成を記録しておいて、2回目以降は設定しておくと接続早くなる
+
+
+let dev = {};
+
+// 受信後の処理
+let TFReceived = function(rIP, device, error) {
+	if( error ) {
+		console.log('-- received error');
+		console.error( error );
+		return;
+	}
+
+	// if( device.lightList ) {
+	if( device.type === TF.AccessoryTypes.lightbulb ) {
+		// console.log( device );
+
+		if( device.instanceId == 65539 ) {  // 上のlogを有効にして、ライトのIDを探して設定する
+			dev = device;
+		}
+	}
+
+	// console.log('-- received, IP:', rIP, ', device:', device);
+};
+
+
+// Tradfri.initialize
+async function TFStart() {
+	try{
+		let co = await TF.initialize( TFkey, TFReceived, {identity: TFidentity, psk: TFpsk, debugMode:true} );
+
+		// 2回目以降はidentityとpskを設定しておくと接続が早い
+		console.log('TF connected, identity=', co.identity, ', psk=', co.psk);
+	}catch(e){
+		console.dir(e);
+	}
+
+
+	// facilitiesの定期的監視
+	let oldVal = JSON.stringify( TF.objectSort(TF.facilities) );
+	let c1 = cron.schedule('0 */1 * * * *', () => {  // 1分毎にautoget、変化があればログ表示
+		const newVal = JSON.stringify( TF.objectSort(TF.facilities) );
+		if ( oldVal == newVal ) return; // 変化した
+		oldVal = newVal;
+		console.log('TF changed, new TF.facilities:', newVal);
+	});
+	c1.start();
+
+
+	// 点滅
+	let on_off = 'on';
+	let c2 = cron.schedule('*/10 * * * * *', async () => {
+		try{
+			if( on_off == 'on' ) {
+				await dev.lightList[0].turnOff();
+				on_off = 'off';
+			}else{
+				await dev.lightList[0].turnOn();
+				on_off = 'on';
+			}
+			console.log('on_off:', on_off);
+		}catch( error ) {
+			console.error( error );
+		}
+	});
+	c2.start();
+
+};
+
+TFStart();  // 実行
+</code></pre>
+<h1>Data stracture</h1>
+<h1>API</h1>
+<h2>初期化と受信, 監視, initialize, receriver callback and observation</h2>
+<ul>
+<li>TF.initialize( TFkey, TFReceived, {identity: TFidentity, psk: TFpsk, debugMode:false} )
+<ul>
+<li>TFReceived(rIP, devices, error)</li>
+</ul>
+</li>
+<li>TF.setObserveFacilities( interval, function )</li>
+</ul>
+<h2>Authors</h2>
+<p>神奈川工科大学  創造工学部  ホームエレクトロニクス開発学科
+Dept. of Home Electronics, Faculty of Creative Engineering, Kanagawa Institute of Technology</p>
+<p>杉村　博
+SUGIMURA Hiroshi</p>
+<h2>License</h2>
+<p>This library is MIT License</p>
+<pre class="prettyprint source"><code>-- License summary --
+o Commercial use
+o Modification
+o Distribution
+o Private use
+x Liability
+x Warranty
+</code></pre>
+<h3>Dependencies</h3>
+<ul>
+<li>MIT
+<ul>
+<li>node-tradfri-client; https://www.npmjs.com/package/node-tradfri-client</li>
+</ul>
+</li>
+</ul>
+<h2>Log</h2>
+<p>― 1.0.0 jsdoc対応、test追加、安定化</p>
+<ul>
+<li>0.5.4 lightとblindを制御しやすく</li>
+<li>0.5.3 dependenciesなくした</li>
+<li>0.5.2 細かいバグログ関連</li>
+<li>0.5.1 autoGet、getStateバグ修正</li>
+<li>0.5.0 安定性向上、少しコントロールもできるように</li>
+<li>0.0.1 start up</li>
+</ul></article>
+    </section>
+
+
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Thu Dec 25 2025 02:34:55 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>
