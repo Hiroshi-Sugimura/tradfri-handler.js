@@ -20,6 +20,10 @@ npm i node-cron
 ```
 
 
+# manual
+
+https://hiroshi-sugimura.github.io/tradfri-handler.js/
+
 
 # Demo, example
 
