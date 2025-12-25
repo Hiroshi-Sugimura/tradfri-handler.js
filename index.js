@@ -80,6 +80,7 @@ let Tradfri = {
 	 * @returns {boolean} 空の場合はtrue、それ以外はfalse
 	 */
 	isObjEmpty: function (obj) {
+		if (!obj) return true; // null or undefined check
 		return Object.keys(obj).length === 0;
 	},
 
@@ -172,7 +173,7 @@ let Tradfri = {
 			console.log('autoGet:', Tradfri.autoGet);
 		}
 
-		while (!Object.keys(Tradfri.gw).length) {
+		while (Tradfri.isObjEmpty(Tradfri.gw)) {
 			if (Tradfri.canceled) {  // 初期化中にキャンセルがきた
 				Tradfri.userFunc(null, 'Canceled', null);
 				Tradfri.enabled = false;
@@ -183,8 +184,13 @@ let Tradfri = {
 				// GWを探す
 				Tradfri.gw = await discoverGateway();
 				if (Tradfri.isObjEmpty(Tradfri.gw)) {
-					// 失敗したら30秒まつ
-					await Tradfri.sleep(30000);
+					// 失敗したら30秒まつ (1秒x30回でキャンセルを確認しながら待つ)
+					for (let i = 0; i < 30; i += 1) {
+						if (Tradfri.canceled) {
+							break;
+						}
+						await Tradfri.sleep(1000);
+					}
 				}
 			} catch (error) {
 				console.error('Error: tradfri-handler.initialize().discoverGateway', error);
@@ -275,7 +281,16 @@ let Tradfri = {
 		if (!Tradfri.enabled) return; // 多重開放の防止
 		Tradfri.enabled = false;
 		await Tradfri.autoGetStop();
-		await Tradfri.client.destroy();
+		if (Tradfri.client && typeof Tradfri.client.destroy === 'function') {
+			await Tradfri.client.destroy();
+		}
+
+		// 内部変数のリセット
+		Tradfri.gw = {};
+		Tradfri.facilities = {};
+		Tradfri.lights = {};
+		Tradfri.blinds = {};
+		Tradfri.client = {};
 	},
 
 
@@ -310,7 +325,7 @@ let Tradfri = {
 
 			default:
 				Tradfri.debugMode ? console.log('Tradfri.setState() unknown devType:', devType) : 0;
-				break;
+				throw new Error('unknown devType: ' + devType);
 		}
 	},
 

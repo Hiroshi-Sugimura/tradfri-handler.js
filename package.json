@@ -4,7 +4,9 @@
   "description": "This module provides tradfri managements API.",
   "main": "index.js",
   "scripts": {
-    "test": "cd ..&& cd .. && npm test"
+    "test": "mocha --exit",
+    "test:integration": "mocha test/test_integration.js --exit",
+    "docs": "jsdoc index.js -d docs -R README.md -t $(npm root -g)/docdash"
   },
   "repository": {
     "type": "git",
@@ -24,5 +26,11 @@
   "dependencies": {
     "node-cron": "^4.2.1",
     "node-tradfri-client": "^3.2.0"
+  },
+  "devDependencies": {
+    "chai": "^6.2.2",
+    "mocha": "^11.7.5",
+    "proxyquire": "^2.1.3",
+    "sinon": "^21.0.1"
   }
 }
